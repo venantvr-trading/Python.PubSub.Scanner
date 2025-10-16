@@ -1,0 +1,2 @@
+[console_scripts]
+pubsub-scanner = python_pubsub_scanner.cli:main
