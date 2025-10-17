@@ -11,24 +11,6 @@
 - **Namespace detection**: automatically discovers event namespaces
 - **Comprehensive statistics**: tracks events, agents, and connections
 
-## Architecture
-
-This scanner is designed to work with the `python_pubsub_devtools` event flow visualization system:
-
-```
-┌─────────────────────┐
-│ Your Application    │
-│ (agents + events)   │
-└──────────┬──────────┘
-           │ scans
-           ▼
-┌─────────────────────┐       POST /api/graph
-│  PubSub Scanner     │ ─────────────────────> ┌──────────────────┐
-│  (python_pubsub_    │     (DOT + stats)      │  Event Flow API  │
-│   scanner)          │                        │  (port 5555)     │
-└─────────────────────┘                        └──────────────────┘
-```
-
 ## Installation
 
 ### From PyPI (when published)

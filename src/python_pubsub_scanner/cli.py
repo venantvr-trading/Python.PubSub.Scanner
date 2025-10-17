@@ -60,6 +60,11 @@ For more information: https://github.com/venantvr-trading/Python.PubSub.Scanner
         action='version',
         version='%(prog)s 0.1.0'
     )
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug mode (show full tracebacks)'
+    )
 
     args = parser.parse_args()
 
@@ -67,8 +72,13 @@ For more information: https://github.com/venantvr-trading/Python.PubSub.Scanner
     agents_dir = Path(args.agents_dir)
     events_dir = Path(args.events_dir) if args.events_dir else None
 
-    # Determine mode
-    interval = None if args.one_shot else args.interval
+    # Determine mode. Default to one-shot if no mode is specified.
+    is_continuous = args.interval is not None and not args.one_shot
+    interval = args.interval if is_continuous else None
+
+    if not is_continuous and not args.one_shot and args.interval is None:
+        print("[SCAN] Info: Neither --one-shot nor --interval specified. Running a single scan.")
+
 
     try:
         # Create scanner
@@ -80,7 +90,7 @@ For more information: https://github.com/venantvr-trading/Python.PubSub.Scanner
         )
 
         # Run
-        if interval:
+        if is_continuous:
             scanner.run_continuous()
         else:
             results = scanner.scan_once()
@@ -103,9 +113,9 @@ For more information: https://github.com/venantvr-trading/Python.PubSub.Scanner
         sys.exit(130)
     except Exception as e:
         print(f"Unexpected error: {e}", file=sys.stderr)
-        import traceback
-
-        traceback.print_exc()
+        if args.debug:
+            import traceback
+            traceback.print_exc()
         sys.exit(1)
 
 

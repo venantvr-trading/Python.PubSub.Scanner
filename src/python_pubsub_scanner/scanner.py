@@ -163,38 +163,25 @@ class EventFlowScanner:
         Returns:
             DOT content as string, or None if generation fails
         """
-        temp_dir = Path(tempfile.gettempdir())
-        dot_file = temp_dir / f"scan_{graph_type}.dot"
-
-        try:
-            if graph_type == 'complete':
-                # Generate complete graph (simplified version without namespace colors)
-                dot_content = self._generate_complete_dot(analyzer)
-                dot_file.write_text(dot_content)
-
-            elif graph_type == 'full-tree':
-                generate_hierarchical_tree(analyzer, str(dot_file), output_format='dot')
-
-            else:
-                print(f"[SCAN] Unknown graph type: {graph_type}")
+        # Use a temporary file that is automatically cleaned up
+        with tempfile.NamedTemporaryFile(mode='w+', suffix='.dot', delete=True, encoding='utf-8') as temp_f:
+            dot_file_path = temp_f.name
+            try:
+                if graph_type == 'complete':
+                    # Generate complete graph (simplified version without namespace colors)
+                    dot_content = self._generate_complete_dot(analyzer)
+                    temp_f.write(dot_content)
+                elif graph_type == 'full-tree':
+                    generate_hierarchical_tree(analyzer, dot_file_path, output_format='dot')
+                else:
+                    print(f"[SCAN] Unknown graph type: {graph_type}")
+                    return None
+ 
+                temp_f.seek(0)  # Rewind to read the content
+                return temp_f.read()
+            except Exception as e:
+                print(f"[SCAN] Error generating DOT for {graph_type}: {e}")
                 return None
-
-            # Read generated DOT
-            if dot_file.exists():
-                dot_content = dot_file.read_text()
-                return dot_content
-            else:
-                print(f"[SCAN] DOT file not created: {dot_file}")
-                return None
-
-        except Exception as e:
-            print(f"[SCAN] Error generating DOT for {graph_type}: {e}")
-            return None
-
-        finally:
-            # Cleanup
-            if dot_file.exists():
-                dot_file.unlink()
 
     # noinspection PyMethodMayBeStatic
     def _generate_complete_dot(self, analyzer: EventFlowAnalyzer) -> str:
