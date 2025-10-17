@@ -171,7 +171,7 @@ name: Update Event Flow
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
     paths:
       - 'agents/**'
       - 'events/**'
