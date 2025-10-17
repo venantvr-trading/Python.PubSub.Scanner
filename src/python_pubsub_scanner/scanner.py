@@ -176,7 +176,7 @@ class EventFlowScanner:
                 else:
                     print(f"[SCAN] Unknown graph type: {graph_type}")
                     return None
- 
+
                 temp_f.seek(0)  # Rewind to read the content
                 return temp_f.read()
             except Exception as e:

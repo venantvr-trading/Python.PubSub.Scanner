@@ -79,7 +79,6 @@ For more information: https://github.com/venantvr-trading/Python.PubSub.Scanner
     if not is_continuous and not args.one_shot and args.interval is None:
         print("[SCAN] Info: Neither --one-shot nor --interval specified. Running a single scan.")
 
-
     try:
         # Create scanner
         scanner = EventFlowScanner(
@@ -115,6 +114,7 @@ For more information: https://github.com/venantvr-trading/Python.PubSub.Scanner
         print(f"Unexpected error: {e}", file=sys.stderr)
         if args.debug:
             import traceback
+
             traceback.print_exc()
         sys.exit(1)
 
