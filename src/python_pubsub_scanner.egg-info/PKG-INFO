@@ -20,6 +20,7 @@ Classifier: Topic :: Software Development :: Libraries :: Python Modules
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 Requires-Dist: requests>=2.28.0
+Requires-Dist: pyyaml
 Provides-Extra: dev
 Requires-Dist: setuptools>=65.0; extra == "dev"
 Requires-Dist: wheel; extra == "dev"
@@ -42,24 +43,6 @@ Requires-Dist: graphviz>=0.20; extra == "dev"
 - **One-shot or continuous modes**: run once or scan periodically
 - **Namespace detection**: automatically discovers event namespaces
 - **Comprehensive statistics**: tracks events, agents, and connections
-
-## Architecture
-
-This scanner is designed to work with the `python_pubsub_devtools` event flow visualization system:
-
-```
-┌─────────────────────┐
-│ Your Application    │
-│ (agents + events)   │
-└──────────┬──────────┘
-           │ scans
-           ▼
-┌─────────────────────┐       POST /api/graph
-│  PubSub Scanner     │ ─────────────────────> ┌──────────────────┐
-│  (python_pubsub_    │     (DOT + stats)      │  Event Flow API  │
-│   scanner)          │                        │  (port 5555)     │
-└─────────────────────┘                        └──────────────────┘
-```
 
 ## Installation
 
@@ -221,7 +204,7 @@ name: Update Event Flow
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
     paths:
       - 'agents/**'
       - 'events/**'

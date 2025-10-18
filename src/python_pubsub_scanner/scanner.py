@@ -1,8 +1,47 @@
 """
-Event Flow Scanner - Autonomous service to scan codebase and push graphs to API
+Event Flow Scanner - Autonomous service to scan codebase and push graphs to API.
 
 Scans agent code periodically, generates graph data, and POSTs to the event_flow API.
-Can run in one-shot mode or continuous mode with configurable interval.
+Can run in one-shot mode or continuous mode with a configurable interval.
+
+Library Usage:
+    To use this scanner as a library in your own Python project, you can import
+    and run it as follows.
+
+    Example:
+        from pathlib import Path
+        from python_pubsub_scanner.scanner import EventFlowScanner
+
+        def run_scan():
+            # Example of running the event flow scanner.
+            agents_path = Path("/path/to/your/project/agents")
+            api_endpoint = "http://localhost:5555"
+
+            print(f"Starting scanner for directory: {agents_path}")
+
+            try:
+                # Initialize the scanner for a one-shot scan.
+                scanner = EventFlowScanner(
+                    agents_dir=agents_path,
+                    api_url=api_endpoint
+                )
+
+                # Execute the scan.
+                results = scanner.scan_once()
+
+                print("\nScan finished.")
+                print("Results:")
+                for graph_type, success in results.items():
+                    status = "✅ Success" if success else "❌ Failed"
+                    print(f"  - Graph '{graph_type}': {status}")
+
+            except ValueError as e:
+                print(f"Initialization Error: {e}")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+
+        if __name__ == "__main__":
+            run_scan()
 """
 from __future__ import annotations
 

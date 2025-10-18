@@ -3,6 +3,7 @@ pyproject.toml
 src/python_pubsub_scanner/__init__.py
 src/python_pubsub_scanner/analyze_event_flow.py
 src/python_pubsub_scanner/cli.py
+src/python_pubsub_scanner/config_helper.py
 src/python_pubsub_scanner/generate_hierarchical_tree.py
 src/python_pubsub_scanner/scanner.py
 src/python_pubsub_scanner.egg-info/PKG-INFO
