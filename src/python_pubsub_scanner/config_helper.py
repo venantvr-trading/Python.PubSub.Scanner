@@ -14,7 +14,7 @@ class ConfigHelper:
     project root, identified by the presence of the configuration file.
     It then loads this file, validates key paths, and provides easy access to the configuration.
     """
-    CONFIG_FILENAME = "pubsub_devtools.yaml"
+    CONFIG_FILENAME = "pubsub_devtools.yml"
 
     def __init__(self, start_path: str | Path | None = None, config_file_name: str | None = None):
         """
@@ -22,7 +22,7 @@ class ConfigHelper:
 
         Args:
             start_path: The path to start searching from. Defaults to the current working directory.
-            config_file_name: The name of the config file to find. Defaults to "pubsub_devtools.yaml".
+            config_file_name: The name of the config file to find. Defaults to "pubsub_devtools.yml".
 
         Raises:
             FileNotFoundError: If the config file or critical directories are not found.
