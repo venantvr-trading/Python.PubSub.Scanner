@@ -15,6 +15,7 @@ Library Usage:
         def run_scan():
             # Example of running the event flow scanner.
             agents_path = Path("/path/to/your/project/agents")
+            events_path = Path("/path/to/your/project/events")
             api_endpoint = "http://localhost:5555"
 
             print(f"Starting scanner for directory: {agents_path}")
@@ -23,6 +24,7 @@ Library Usage:
                 # Initialize the scanner for a one-shot scan.
                 scanner = EventFlowScanner(
                     agents_dir=agents_path,
+                    events_dir=events_path,
                     api_url=api_endpoint
                 )
 
@@ -45,33 +47,30 @@ Library Usage:
 """
 from __future__ import annotations
 
+import json
 import tempfile
 import time
 from pathlib import Path
 from typing import Optional, Dict, Set, Any
+from urllib.parse import urlparse
 
 import requests
 
-# Import from local modules (zero external dependencies)
 from .analyze_event_flow import EventFlowAnalyzer
+from .config_helper import ConfigHelper
 from .generate_hierarchical_tree import generate_hierarchical_tree
 
 
 class EventFlowScanner:
     """
     Scanner service that analyzes event flow and pushes to API
-
-    Attributes:
-        agents_dir: Directory containing agent code
-        events_dir: Directory containing event definitions
-        api_url: Base URL of the event_flow API
-        interval: Scan interval in seconds (None for one-shot)
     """
 
     def __init__(
             self,
             agents_dir: Path,
-            events_dir: Optional[Path] = None,
+            events_dir: Path,
+            postman_dir: Optional[Path] = None,
             api_url: str = "http://localhost:5555",
             interval: Optional[int] = None,
     ):
@@ -79,43 +78,65 @@ class EventFlowScanner:
         Initialize scanner
 
         Args:
-            agents_dir: Path to agents directory
-            events_dir: Path to events directory (optional, for namespace info)
-            api_url: Base URL of event_flow API
-            interval: Scan interval in seconds (None for one-shot mode)
+            agents_dir: Path to agents directory.
+            events_dir: Path to events directory for namespace info.
+            postman_dir: Path to directory for Postman collections (optional).
+            api_url: Base URL of event_flow API.
+            interval: Scan interval in seconds (None for one-shot mode).
         """
         self.agents_dir = agents_dir
         self.events_dir = events_dir
+        self.postman_dir = postman_dir
         self.api_url = api_url.rstrip('/')
         self.interval = interval
+        self.postman_collection_generated = False  # Flag to ensure single generation
 
-        # Validate paths
-        if not self.agents_dir.exists():
-            raise ValueError(f"Agents directory not found: {self.agents_dir}")
+        if not self.agents_dir.exists() or not self.agents_dir.is_dir():
+            raise ValueError(f"Agents directory not found or not a directory: {self.agents_dir}")
+        if not self.events_dir.exists() or not self.events_dir.is_dir():
+            raise ValueError(f"Events directory not found or not a directory: {self.events_dir}")
+
+    @classmethod
+    def from_config(cls, config: ConfigHelper, interval: Optional[int] = None) -> "EventFlowScanner":
+        """
+        Creates an EventFlowScanner instance from a ConfigHelper object.
+
+        This factory method simplifies initialization by automatically extracting
+        the required paths and API URL from the validated configuration.
+
+        Args:
+            config: A fully initialized ConfigHelper instance.
+            interval: Scan interval in seconds (None for one-shot mode).
+
+        Returns:
+            A configured instance of EventFlowScanner.
+        """
+        event_flow_config = config.get_service_config('event_flow')
+        api_url = f"http://localhost:{event_flow_config.get('port', 5555)}"
+
+        return cls(
+            agents_dir=config.get_agents_path(),
+            events_dir=config.get_events_path(),
+            postman_dir=config.get_postman_path(),
+            api_url=api_url,
+            interval=interval
+        )
 
     def scan_once(self) -> Dict[str, bool]:
         """
-        Perform a single scan and push to API
-
-        Returns:
-            Dictionary mapping graph_type to success status
+        Perform a single scan, push to API, and generate Postman collection if configured.
         """
         print(f"[SCAN] Starting scan at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"[SCAN] Agents directory: {self.agents_dir}")
 
-        # Analyze event flow using python_pubsub_devtools
         analyzer = EventFlowAnalyzer(self.agents_dir)
         analyzer.analyze()
 
         events = analyzer.get_all_events()
         agents = set(analyzer.subscriptions.keys()) | set(analyzer.publications.keys())
-
         print(f"[SCAN] Found {len(events)} events, {len(agents)} agents")
 
-        # Collect namespaces if events_dir available
-        namespaces = self._get_namespaces() if self.events_dir else None
-
-        # Generate and push each graph type
+        namespaces = self._get_namespaces()
         graph_types = ['complete', 'full-tree']
         results = {}
 
@@ -125,14 +146,9 @@ class EventFlowScanner:
                 dot_content = self._generate_dot(analyzer, graph_type)
 
                 if dot_content:
-                    # Calculate connections (subscriptions + publications)
-                    total_connections = 0
-                    for event, subscribers in analyzer.event_to_subscribers.items():
-                        total_connections += len(subscribers)
-                    for agent, publications in analyzer.publications.items():
-                        total_connections += len(publications)
+                    total_connections = sum(len(s) for s in analyzer.event_to_subscribers.values()) + \
+                                        sum(len(p) for p in analyzer.publications.values())
 
-                    # Prepare payload
                     payload: Dict[str, Any] = {
                         'graph_type': graph_type,
                         'dot_content': dot_content,
@@ -140,31 +156,98 @@ class EventFlowScanner:
                             'events': len(events),
                             'agents': len(agents),
                             'connections': total_connections,
-                        }
+                        },
+                        'namespaces': list(namespaces)  # Always include namespaces key
                     }
 
-                    if namespaces:
-                        payload['namespaces'] = list(namespaces)
-
-                    # POST to API
                     success = self._push_to_api(payload)
                     results[graph_type] = success
                 else:
                     print(f"[SCAN] Failed to generate {graph_type}")
                     results[graph_type] = False
-
             except Exception as e:
                 print(f"[SCAN] Error processing {graph_type}: {e}")
                 results[graph_type] = False
 
         return results
 
+    def _generate_postman_collection(self, payload: Dict[str, Any]):
+        """
+        Generates a Postman collection file from a given payload.
+        """
+        collection_name = "Event Flow API.postman_collection.json"
+        output_path = self.postman_dir / collection_name
+
+        parsed_url = urlparse(f"{self.api_url}/api/graph")
+
+        postman_json = {
+            "info": {
+                "name": "Event Flow Scanner API",
+                "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+            },
+            "item": [
+                {
+                    "name": "Push Graph Data",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Content-Type", "value": "application/json"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": json.dumps(payload, indent=4)
+                        },
+                        "url": {
+                            "raw": parsed_url.geturl(),
+                            "protocol": parsed_url.scheme,
+                            "host": [parsed_url.hostname],
+                            "port": str(parsed_url.port),
+                            "path": parsed_url.path.strip('/').split('/')
+                        }
+                    }
+                }
+            ]
+        }
+
+        try:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(postman_json, f, indent=4)
+            print(f"✅ Postman collection generated at: {output_path}")
+        except IOError as e:
+            print(f"❌ Failed to write Postman collection: {e}")
+
+    def _push_to_api(self, payload: Dict) -> bool:
+        """
+        POST graph data to API and trigger Postman collection generation on success.
+        """
+        endpoint = f"{self.api_url}/api/graph"
+        try:
+            response = requests.post(
+                endpoint,
+                json=payload,
+                timeout=30,
+                headers={'Content-Type': 'application/json'}
+            )
+
+            if response.status_code == 201:
+                result = response.json()
+                print(f"[SCAN] ✅ Pushed {payload['graph_type']} successfully (Timestamp: {result.get('timestamp')})")
+
+                if self.postman_dir and not self.postman_collection_generated:
+                    self._generate_postman_collection(payload)
+                    self.postman_collection_generated = True
+
+                return True
+            else:
+                print(f"[SCAN] ❌ Failed to push {payload['graph_type']}: {response.status_code} - {response.text}")
+                return False
+        except requests.exceptions.RequestException as e:
+            print(f"[SCAN] ❌ API request failed: {e}")
+            return False
+
     def run_continuous(self) -> None:
         """
         Run scanner in continuous mode with configured interval
-
-        Raises:
-            ValueError: If interval is None
         """
         if self.interval is None:
             raise ValueError("Cannot run continuous mode without interval")
@@ -176,62 +259,35 @@ class EventFlowScanner:
 
         try:
             while True:
-                results = self.scan_once()
-
-                # Print summary
-                success_count = sum(1 for s in results.values() if s)
-                total_count = len(results)
-                print(f"[SCAN] Completed: {success_count}/{total_count} graphs pushed successfully")
-                print()
-
-                # Wait for next cycle
+                self.scan_once()
                 print(f"[SCAN] Sleeping for {self.interval} seconds...")
                 time.sleep(self.interval)
-
         except KeyboardInterrupt:
             print("\n[SCAN] Stopped by user")
 
     def _generate_dot(self, analyzer: EventFlowAnalyzer, graph_type: str) -> Optional[str]:
         """
         Generate DOT content for specified graph type
-
-        Args:
-            analyzer: EventFlowAnalyzer instance with analysis results
-            graph_type: Type of graph (complete, full-tree)
-
-        Returns:
-            DOT content as string, or None if generation fails
         """
-        # Use a temporary file that is automatically cleaned up
         with tempfile.NamedTemporaryFile(mode='w+', suffix='.dot', delete=True, encoding='utf-8') as temp_f:
             dot_file_path = temp_f.name
             try:
                 if graph_type == 'complete':
-                    # Generate complete graph (simplified version without namespace colors)
                     dot_content = self._generate_complete_dot(analyzer)
                     temp_f.write(dot_content)
                 elif graph_type == 'full-tree':
                     generate_hierarchical_tree(analyzer, dot_file_path, output_format='dot')
                 else:
-                    print(f"[SCAN] Unknown graph type: {graph_type}")
                     return None
-
-                temp_f.seek(0)  # Rewind to read the content
+                temp_f.seek(0)
                 return temp_f.read()
             except Exception as e:
                 print(f"[SCAN] Error generating DOT for {graph_type}: {e}")
                 return None
 
-    # noinspection PyMethodMayBeStatic
     def _generate_complete_dot(self, analyzer: EventFlowAnalyzer) -> str:
         """
         Generate DOT content for complete graph
-
-        Args:
-            analyzer: EventFlowAnalyzer with analysis results
-
-        Returns:
-            DOT content as string
         """
         lines = ['digraph EventFlow {',
                  '    rankdir=TB;',
@@ -242,21 +298,15 @@ class EventFlowScanner:
         events = analyzer.get_all_events()
         agents = set(analyzer.subscriptions.keys()) | set(analyzer.publications.keys())
 
-        # Add event nodes
         for event in sorted(events):
             lines.append(f'    "{event}" [fillcolor="#e0e0e0", shape=ellipse];')
-
-        # Add agent nodes
         for agent in sorted(agents):
             lines.append(f'    "{agent}" [fillcolor="#ffcc80"];')
-
         lines.append('')
 
-        # Add edges
         for event, subscribers in sorted(analyzer.event_to_subscribers.items()):
             for subscriber in subscribers:
                 lines.append(f'    "{event}" -> "{subscriber}";')
-
         for agent, publications in sorted(analyzer.publications.items()):
             for event in publications:
                 lines.append(f'    "{agent}" -> "{event}";')
@@ -266,57 +316,7 @@ class EventFlowScanner:
 
     def _get_namespaces(self) -> Set[str]:
         """
-        Get all event namespaces by scanning events directory
-
-        Returns:
-            Set of namespace names
+        Get all event namespaces by scanning events directory.
+        Assumes events_dir exists as validated in the constructor.
         """
-        if not self.events_dir or not self.events_dir.exists():
-            return set()
-
-        namespaces = set()
-        for namespace_dir in self.events_dir.iterdir():
-            if namespace_dir.is_dir() and not namespace_dir.name.startswith('__'):
-                namespaces.add(namespace_dir.name)
-
-        return namespaces
-
-    def _push_to_api(self, payload: Dict) -> bool:
-        """
-        POST graph data to API
-
-        Args:
-            payload: Dictionary with graph data
-
-        Returns:
-            True if successful, False otherwise
-        """
-        endpoint = f"{self.api_url}/api/graph"
-
-        try:
-            response = requests.post(
-                endpoint,
-                json=payload,
-                timeout=30,
-                headers={'Content-Type': 'application/json'}
-            )
-
-            if response.status_code == 201:
-                result = response.json()
-                print(f"[SCAN] ✅ Pushed {payload['graph_type']} successfully")
-                print(f"[SCAN]    Timestamp: {result.get('timestamp')}")
-                return True
-            else:
-                print(f"[SCAN] ❌ Failed to push {payload['graph_type']}: {response.status_code}")
-                print(f"[SCAN]    Response: {response.text}")
-                return False
-
-        except requests.exceptions.ConnectionError:
-            print(f"[SCAN] ❌ Connection error - is API running at {self.api_url}?")
-            return False
-        except requests.exceptions.Timeout:
-            print(f"[SCAN] ❌ Request timeout")
-            return False
-        except Exception as e:
-            print(f"[SCAN] ❌ Unexpected error pushing to API: {e}")
-            return False
+        return {d.name for d in self.events_dir.iterdir() if d.is_dir() and not d.name.startswith('__')}

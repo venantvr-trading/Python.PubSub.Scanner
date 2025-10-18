@@ -134,33 +134,64 @@ options:
   --version             show program's version number and exit
 ```
 
-## Programmatic Usage
+## Programmatic Usage (Recommended)
 
-You can also use the scanner programmatically in your Python code:
+The recommended way to use the scanner in your Python project is to leverage the `ConfigHelper` and the `devtools_config.yaml` file. This centralizes your configuration
+and simplifies initialization.
+
+### 1. Create a `devtools_config.yaml`
+
+Create a `devtools_config.yaml` file at the root of your project:
+
+```yaml
+# devtools_config.yaml
+
+# === Common Directories ===
+agents_dir: "./path/to/your/agents"
+events_dir: "./path/to/your/events"
+
+# Optional: Directory for Postman collections.
+# If it exists, a collection will be generated.
+postman_dir: "./postman"
+
+# === Service Configurations ===
+event_flow:
+  port: 5555
+```
+
+### 2. Use the Factory Method
+
+Now, you can instantiate the scanner easily from anywhere in your project.
 
 ```python
-from pathlib import Path
-from python_pubsub_scanner import EventFlowScanner
+from python_pubsub_scanner.config_helper import ConfigHelper
+from python_pubsub_scanner.scanner import EventFlowScanner
 
-# Create scanner
-scanner = EventFlowScanner(
-    agents_dir=Path("./agents"),
-    events_dir=Path("./events"),
-    api_url="http://localhost:5555"
-)
 
-# One-shot scan
-results = scanner.scan_once()
-print(f"Results: {results}")
+def run_scan_from_config():
+    """
+    Initializes and runs the scanner using the central configuration.
+    """
+    try:
+        # 1. Initialize the helper. It automatically finds and validates the config.
+        helper = ConfigHelper(config_file_name="devtools_config.yaml")
 
-# Continuous scan
-scanner_continuous = EventFlowScanner(
-    agents_dir=Path("./agents"),
-    api_url="http://localhost:5555",
-    interval=60  # seconds
-)
-scanner_continuous.run_continuous()  # Runs until interrupted
+        # 2. Use the factory method to create a fully configured scanner.
+        scanner = EventFlowScanner.from_config(config=helper)
+
+        # 3. Execute a one-shot scan.
+        results = scanner.scan_once()
+        print(f"Scan results: {results}")
+
+    except (FileNotFoundError, ValueError, KeyError) as e:
+        print(f"❌ Configuration Error: {e}")
+
+
+if __name__ == "__main__":
+    run_scan_from_config()
 ```
+
+This approach is robust, as it ensures all paths are validated and decouples the scanner's initialization from hardcoded paths in your scripts.
 
 ## CI/CD Integration
 
