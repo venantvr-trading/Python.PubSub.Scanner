@@ -4,49 +4,84 @@
 
 ## Features
 
-- **Autonomous scanning** of agent files to detect event subscriptions and publications
-- **Multiple graph types**: simplified, complete, and full-tree visualizations
-- **API integration**: automatically pushes graph data and statistics to event_flow API
-- **One-shot or continuous modes**: run once or scan periodically
-- **Namespace detection**: automatically discovers event namespaces
-- **Comprehensive statistics**: tracks events, agents, and connections
+- **Code Analysis**: Autonomously scans agent files to detect event subscriptions and publications.
+- **Graph Generation**:
+    - Generates multiple graph types (simplified, complete, full-tree).
+    - Produces DOT content with CSS classes (`namespace-*`) for easy styling in web frontends.
+- **API Integration**:
+    - Automatically pushes graph data and statistics to a monitoring API.
+    - Generates a Postman collection on successful API push if a `postman` directory is found.
+- **Flexible Execution**:
+    - Supports one-shot or continuous scanning modes.
+    - Configurable via a central `devtools_config.yaml` file or command-line arguments.
 
 ## Installation
 
-### From PyPI (when published)
-
 ```bash
-pip install python_pubsub_scanner
-```
-
-### From source
-
-```bash
+# From source (recommended for development)
 git clone https://github.com/venantvr-trading/Python.PubSub.Scanner
 cd Python.PubSub.Scanner
-pip install -e .
-```
-
-### With development dependencies
-
-```bash
 pip install -e ".[dev]"
 ```
 
-## Quick Start
+## Usage
 
-### 1. Start the Event Flow API
+### 1. Create a Configuration File
 
-First, ensure the event_flow API server is running:
+The recommended way to use the scanner is with a central configuration file. At the root of your project, create a `devtools_config.yaml` file.
 
-```bash
-# In your DevTools project
-pubsub-tools event-flow
+```yaml
+# devtools_config.yaml
+
+# === Common Directories ===
+agents_dir: "./path/to/your/agents"  # Required
+events_dir: "./path/to/your/events"  # Required
+
+# Optional: If this directory exists, a Postman collection will be generated here.
+# If this key is omitted, the scanner will look for a "postman" directory
+# next to the "agents" directory.
+postman_dir: "./postman"
+
+# === Service Configurations ===
+event_flow:
+  port: 5555
 ```
 
-### 2. Run the Scanner
+### 2. Run Programmatically (Recommended)
 
-**One-shot scan:**
+Create a Python script to run the scanner. This approach is robust as it ensures all paths are validated and decouples the scanner's initialization from hardcoded paths.
+
+```python
+# run_scanner.py
+from python_pubsub_scanner.config_helper import ConfigHelper
+from python_pubsub_scanner.scanner import EventFlowScanner
+
+
+def main():
+    """
+    Initializes and runs the scanner using the central configuration.
+    """
+    try:
+        # 1. Initialize the helper. It finds and validates the config automatically.
+        helper = ConfigHelper(config_file_name="devtools_config.yaml")
+
+        # 2. Use the factory method to create a fully configured scanner.
+        scanner = EventFlowScanner.from_config(config=helper)
+
+        # 3. Execute a one-shot scan.
+        results = scanner.scan_once()
+        print(f"\n✅ Scan complete. Results: {results}")
+
+    except (FileNotFoundError, ValueError, KeyError) as e:
+        print(f"❌ Configuration Error: {e}")
+
+if __name__ == "__main__":
+    main()
+```
+
+### 3. Alternative: Run from the Command Line
+
+You can still run the scanner directly from the command line. Note that `--events-dir` is now required.
 
 ```bash
 pubsub-scanner \
@@ -56,67 +91,10 @@ pubsub-scanner \
     --one-shot
 ```
 
-**Continuous scan (every 60 seconds):**
-
-```bash
-pubsub-scanner \
-    --agents-dir /path/to/your/agents \
-    --events-dir /path/to/your/events \
-    --interval 60
-```
-
-### 3. View Results
-
-Open your browser to `http://localhost:5555` to see the visualizations.
-
-## Integration with Makefile
-
-Add scanner commands to your application's Makefile:
-
-```makefile
-# Makefile in your application root
-
-.PHONY: scan-events scan-events-watch
-
-# Scanner configuration
-SCANNER_API_URL := http://localhost:5555
-AGENTS_DIR := ./python_pubsub_risk/agents
-EVENTS_DIR := ./python_pubsub_risk/events
-
-# One-shot scan
-scan-events:
-	@echo "Scanning event flow..."
-	@pubsub-scanner \
-		--agents-dir $(AGENTS_DIR) \
-		--events-dir $(EVENTS_DIR) \
-		--api-url $(SCANNER_API_URL) \
-		--one-shot
-	@echo "✅ Scan complete! View at $(SCANNER_API_URL)"
-
-# Continuous scan
-scan-events-watch:
-	@echo "Starting continuous event flow scanner..."
-	@pubsub-scanner \
-		--agents-dir $(AGENTS_DIR) \
-		--events-dir $(EVENTS_DIR) \
-		--api-url $(SCANNER_API_URL) \
-		--interval 60
-```
-
-Then run:
-
-```bash
-# One-shot
-make scan-events
-
-# Continuous
-make scan-events-watch
-```
-
 ## Command-Line Options
 
 ```
-usage: pubsub-scanner [-h] --agents-dir AGENTS_DIR [--events-dir EVENTS_DIR]
+usage: pubsub-scanner [-h] --agents-dir AGENTS_DIR --events-dir EVENTS_DIR
                       [--api-url API_URL] [--interval INTERVAL] [--one-shot]
                       [--version]
 
@@ -127,186 +105,28 @@ options:
   --agents-dir AGENTS_DIR
                         Path to agents directory (required)
   --events-dir EVENTS_DIR
-                        Path to events directory (optional, for namespace info)
+                        Path to events directory (required)
   --api-url API_URL     Base URL of event_flow API (default: http://localhost:5555)
   --interval INTERVAL   Scan interval in seconds (omit for one-shot mode)
   --one-shot            Run once and exit (overrides --interval)
   --version             show program's version number and exit
 ```
 
-## Programmatic Usage (Recommended)
-
-The recommended way to use the scanner in your Python project is to leverage the `ConfigHelper` and the `devtools_config.yaml` file. This centralizes your configuration
-and simplifies initialization.
-
-### 1. Create a `devtools_config.yaml`
-
-Create a `devtools_config.yaml` file at the root of your project:
-
-```yaml
-# devtools_config.yaml
-
-# === Common Directories ===
-agents_dir: "./path/to/your/agents"
-events_dir: "./path/to/your/events"
-
-# Optional: Directory for Postman collections.
-# If it exists, a collection will be generated.
-postman_dir: "./postman"
-
-# === Service Configurations ===
-event_flow:
-  port: 5555
-```
-
-### 2. Use the Factory Method
-
-Now, you can instantiate the scanner easily from anywhere in your project.
-
-```python
-from python_pubsub_scanner.config_helper import ConfigHelper
-from python_pubsub_scanner.scanner import EventFlowScanner
-
-
-def run_scan_from_config():
-    """
-    Initializes and runs the scanner using the central configuration.
-    """
-    try:
-        # 1. Initialize the helper. It automatically finds and validates the config.
-        helper = ConfigHelper(config_file_name="devtools_config.yaml")
-
-        # 2. Use the factory method to create a fully configured scanner.
-        scanner = EventFlowScanner.from_config(config=helper)
-
-        # 3. Execute a one-shot scan.
-        results = scanner.scan_once()
-        print(f"Scan results: {results}")
-
-    except (FileNotFoundError, ValueError, KeyError) as e:
-        print(f"❌ Configuration Error: {e}")
-
-
-if __name__ == "__main__":
-    run_scan_from_config()
-```
-
-This approach is robust, as it ensures all paths are validated and decouples the scanner's initialization from hardcoded paths in your scripts.
-
-## CI/CD Integration
-
-### GitHub Actions
-
-```yaml
-name: Update Event Flow
-
-on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'agents/**'
-      - 'events/**'
-
-jobs:
-  scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install scanner
-        run: pip install python_pubsub_scanner
-
-      - name: Scan event flow
-        run: |
-          pubsub-scanner \
-            --agents-dir ./agents \
-            --events-dir ./events \
-            --api-url https://event-flow.mycompany.com \
-            --one-shot
-```
-
-### GitLab CI
-
-```yaml
-scan-events:
-  stage: build
-  image: python:3.10
-  script:
-    - pip install python_pubsub_scanner
-    - pubsub-scanner --agents-dir ./agents --events-dir ./events --one-shot
-  only:
-    changes:
-      - agents/**
-      - events/**
-```
-
 ## Development
 
-### Setup development environment
+Use the provided Makefile for common development tasks.
 
 ```bash
-# Clone repository
-git clone https://github.com/venantvr-trading/Python.PubSub.Scanner
-cd Python.PubSub.Scanner
+# Install dependencies
+make install-dev
 
-# Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install in editable mode with dev dependencies
-pip install -e ".[dev]"
-```
-
-### Run quality checks
-
-```bash
-# Format code
-make format
-
-# Lint code
-make lint
-
-# Run all checks
+# Run all checks (format, lint, test)
 make check
+
+# Run tests only
+make test
 ```
-
-### Project structure
-
-```
-Python.PubSub.Scanner/
-├── src/
-│   └── python_pubsub_scanner/
-│       ├── __init__.py          # Public API
-│       ├── scanner.py           # Core scanner logic
-│       └── cli.py               # Command-line interface
-├── pyproject.toml               # Package configuration
-├── Makefile                     # Development tasks
-├── README.md                    # This file
-└── .gitignore                   # Git ignore rules
-```
-
-## Dependencies
-
-- **requests** >= 2.28.0 - HTTP client for API calls
-
-All event flow analysis logic is embedded directly in this package with **zero external dependencies** (except requests for HTTP).
 
 ## License
 
-MIT License - See LICENSE file for details
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Links
-
-- **Documentation**: https://github.com/venantvr-trading/Python.PubSub.Scanner/wiki
-- **Issues**: https://github.com/venantvr-trading/Python.PubSub.Scanner/issues
-- **Related Projects**:
-    - [Python.PubSub.DevTools](https://github.com/venantvr-trading/Python.PubSub.DevTools) - Event flow visualization API
+MIT License - See LICENSE file for details.
