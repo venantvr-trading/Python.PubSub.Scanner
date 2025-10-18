@@ -75,6 +75,7 @@ def main():
     except (FileNotFoundError, ValueError, KeyError) as e:
         print(f"❌ Configuration Error: {e}")
 
+
 if __name__ == "__main__":
     main()
 ```

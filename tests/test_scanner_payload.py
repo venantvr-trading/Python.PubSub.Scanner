@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import graphviz
+
 from python_pubsub_scanner.config_helper import ConfigHelper
 from python_pubsub_scanner.scanner import EventFlowScanner
 

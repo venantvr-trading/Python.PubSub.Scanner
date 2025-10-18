@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 import yaml
+
 from python_pubsub_scanner.config_helper import ConfigHelper
 
 
