@@ -134,3 +134,6 @@ class ConfigHelper:
         Returns the validated, absolute path to the Postman directory, if it exists.
         """
         return self.postman_dir
+
+    def get_namespaces_colors(self):
+        return self.config.get('namespaces_colors', {})
