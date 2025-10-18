@@ -73,6 +73,9 @@ class EventFlowScanner:
             postman_dir: Optional[Path] = None,
             api_url: str = "http://localhost:5555",
             interval: Optional[int] = None,
+            colors: Optional[Dict[str, str]] = None,
+            shapes: Optional[Dict[str, str]] = None,
+            fontname: Optional[str] = None
     ):
         """
         Initialize scanner
@@ -83,12 +86,23 @@ class EventFlowScanner:
             postman_dir: Path to directory for Postman collections (optional).
             api_url: Base URL of event_flow API.
             interval: Scan interval in seconds (None for one-shot mode).
+            colors: A dictionary mapping a namespace to a fill color (e.g., {"user_service": "#ff0000"}).
+            shapes: A dictionary mapping a namespace to a node shape.
+                   Common Graphviz shapes include:
+                   - Basic: ellipse, oval, circle, box, polygon, triangle, diamond, point.
+                   - Geometric: trapezium, parallelogram, house, pentagon, hexagon, octagon.
+                   - Special: plaintext, star, cylinder, note, tab, folder, box3d, component.
+            fontname: The name of the font to use for the graph elements (e.g., "Arial", "Verdana").
+                   - For a full list, see the Graphviz documentation on node shapes.
         """
         self.agents_dir = agents_dir
         self.events_dir = events_dir
         self.postman_dir = postman_dir
         self.api_url = api_url.rstrip('/')
         self.interval = interval
+        self.colors = colors or {}
+        self.shapes = shapes or {}
+        self.fontname = fontname
         self.postman_collection_generated = False  # Flag to ensure single generation
 
         if not self.agents_dir.exists() or not self.agents_dir.is_dir():
@@ -289,17 +303,26 @@ class EventFlowScanner:
         """
         Generate DOT content for complete graph
         """
+        fontname = self.fontname or "Arial"
         lines = ['digraph EventFlow {',
+                 f'    graph [fontname="{fontname}"];',
                  '    rankdir=TB;',
-                 '    node [shape=box, style="filled,rounded", fontname="Arial", fontsize=10];',
-                 '    edge [arrowsize=0.8];',
+                 f'    node [shape=box, style="filled,rounded", fontname="{fontname}", fontsize=10];',
+                 f'    edge [arrowsize=0.8, fontname="{fontname}"];',
                  '']
 
         events = analyzer.get_all_events()
         agents = set(analyzer.subscriptions.keys()) | set(analyzer.publications.keys())
 
         for event in sorted(events):
-            lines.append(f'    "{event}" [fillcolor="#e0e0e0", shape=ellipse];')
+            namespace = event.split('.')[0] if '.' in event else 'default'
+            default_color = "#e0e0e0"
+            default_shape = "ellipse"
+
+            fillcolor = self.colors.get(namespace, default_color)
+            shape = self.shapes.get(namespace, default_shape)
+
+            lines.append(f'    "{event}" [fillcolor="{fillcolor}", shape={shape}, namespace="{namespace}"];')
         for agent in sorted(agents):
             lines.append(f'    "{agent}" [fillcolor="#ffcc80"];')
         lines.append('')
