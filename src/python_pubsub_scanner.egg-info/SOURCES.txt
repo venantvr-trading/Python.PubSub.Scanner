@@ -12,4 +12,5 @@ src/python_pubsub_scanner.egg-info/dependency_links.txt
 src/python_pubsub_scanner.egg-info/entry_points.txt
 src/python_pubsub_scanner.egg-info/requires.txt
 src/python_pubsub_scanner.egg-info/top_level.txt
+tests/test_config_helper.py
 tests/test_scanner_payload.py

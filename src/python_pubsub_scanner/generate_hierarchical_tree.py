@@ -31,7 +31,7 @@ def generate_hierarchical_tree(analyzer: EventFlowAnalyzer, output_path: str, ou
 
     # Separate events and agents
     events = analyzer.get_all_events()
-    agents = set(analyzer.subscriptions.keys()) | set(analyzer.publications.keys())
+    agents = analyzer.get_all_agents()
 
     # Agent color
     agent_color = '#ffcc80'
@@ -39,13 +39,13 @@ def generate_hierarchical_tree(analyzer: EventFlowAnalyzer, output_path: str, ou
     # Add event nodes
     lines.append('    // Events')
     for event in sorted(events):
-        lines.append(f'    "{event}" [fillcolor="#e0e0e0", shape=ellipse, fontsize=10];')
+        lines.append(f'    "{event.name}" [fillcolor="#e0e0e0", shape=ellipse, fontsize=10, class="namespace-{event.namespace}"];')
 
     lines.append('')
     lines.append('    // Agents')
     for agent in sorted(agents):
-        label = agent.replace('_', ' ')
-        lines.append(f'    "{agent}" [label="{label}", fillcolor="{agent_color}", shape=box, fontsize=10];')
+        label = agent.name.replace('_', ' ')
+        lines.append(f'    "{agent.name}" [label="{label}", fillcolor="{agent_color}", shape=box, fontsize=10, class="namespace-{agent.namespace}"];')
 
     lines.append('')
     lines.append('    // Edges')
@@ -53,12 +53,12 @@ def generate_hierarchical_tree(analyzer: EventFlowAnalyzer, output_path: str, ou
     # Add edges: event -> agent (subscription)
     for event, subscribers in sorted(analyzer.event_to_subscribers.items()):
         for subscriber in subscribers:
-            lines.append(f'    "{event}" -> "{subscriber}";')
+            lines.append(f'    "{event.name}" -> "{subscriber.name}";')
 
     # Add edges: agent -> event (publication)
     for agent, publications in sorted(analyzer.publications.items()):
         for event in publications:
-            lines.append(f'    "{agent}" -> "{event}";')
+            lines.append(f'    "{agent.name}" -> "{event.name}";')
 
     lines.append('}')
 

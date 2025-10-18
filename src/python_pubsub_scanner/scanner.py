@@ -143,14 +143,15 @@ class EventFlowScanner:
         print(f"[SCAN] Starting scan at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"[SCAN] Agents directory: {self.agents_dir}")
 
-        analyzer = EventFlowAnalyzer(self.agents_dir)
+        analyzer = EventFlowAnalyzer(self.agents_dir, self.events_dir)
         analyzer.analyze()
 
-        events = analyzer.get_all_events()
-        agents = set(analyzer.subscriptions.keys()) | set(analyzer.publications.keys())
+        events = analyzer.get_all_events()  # Now returns Set[NamespacedItem]
+        agents = analyzer.get_all_agents()  # Now returns Set[NamespacedItem]
         print(f"[SCAN] Found {len(events)} events, {len(agents)} agents")
 
-        namespaces = self._get_namespaces()
+        namespaces = analyzer.get_all_namespaces()  # Get namespaces from both agents and events
+        print(f"[SCAN] Found {len(namespaces)} namespaces: {sorted(namespaces)}")
         graph_types = ['complete', 'full-tree']
         results = {}
 
@@ -301,7 +302,7 @@ class EventFlowScanner:
 
     def _generate_complete_dot(self, analyzer: EventFlowAnalyzer) -> str:
         """
-        Generate DOT content for complete graph
+        Generate DOT content for complete graph with homogeneous styles and namespace classes.
         """
         fontname = self.fontname or "Arial"
         lines = ['digraph EventFlow {',
@@ -312,27 +313,30 @@ class EventFlowScanner:
                  '']
 
         events = analyzer.get_all_events()
-        agents = set(analyzer.subscriptions.keys()) | set(analyzer.publications.keys())
+        agents = analyzer.get_all_agents()
 
+        # Add event nodes with a class for their namespace
         for event in sorted(events):
-            namespace = event.split('.')[0] if '.' in event else 'default'
             default_color = "#e0e0e0"
             default_shape = "ellipse"
 
-            fillcolor = self.colors.get(namespace, default_color)
-            shape = self.shapes.get(namespace, default_shape)
+            fillcolor = self.colors.get(event.namespace, default_color)
+            shape = self.shapes.get(event.namespace, default_shape)
 
-            lines.append(f'    "{event}" [fillcolor="{fillcolor}", shape={shape}, namespace="{namespace}"];')
+            lines.append(f'    "{event.name}" [fillcolor="{fillcolor}", shape={shape}, class="namespace-{event.namespace}"];')
         for agent in sorted(agents):
-            lines.append(f'    "{agent}" [fillcolor="#ffcc80"];')
+            lines.append(f'    "{agent.name}" [fillcolor="#ffcc80", class="namespace-{agent.namespace}"];')
+
         lines.append('')
 
+        # Add edges
         for event, subscribers in sorted(analyzer.event_to_subscribers.items()):
             for subscriber in subscribers:
-                lines.append(f'    "{event}" -> "{subscriber}";')
+                lines.append(f'    "{event.name}" -> "{subscriber.name}";')
+
         for agent, publications in sorted(analyzer.publications.items()):
             for event in publications:
-                lines.append(f'    "{agent}" -> "{event}";')
+                lines.append(f'    "{agent.name}" -> "{event.name}";')
 
         lines.append('}')
         return '\n'.join(lines)

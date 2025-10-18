@@ -7,9 +7,36 @@ then generates a visual graph of the event flow.
 from __future__ import annotations
 
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Set
+
+
+@dataclass
+class NamespacedItem:
+    """
+    Represents an item (event or agent) with its name and namespace.
+
+    Attributes:
+        name: The class name (e.g., "UserCreated")
+        namespace: The namespace/module (e.g., "user_service")
+    """
+    name: str
+    namespace: str
+
+    def __hash__(self):
+        return hash((self.name, self.namespace))
+
+    def __eq__(self, other):
+        if isinstance(other, NamespacedItem):
+            return self.name == other.name and self.namespace == other.namespace
+        return False
+
+    def __lt__(self, other):
+        if isinstance(other, NamespacedItem):
+            return (self.namespace, self.name) < (other.namespace, other.name)
+        return NotImplemented
 
 
 class EventFlowAnalyzer:
@@ -24,18 +51,57 @@ class EventFlowAnalyzer:
         event_to_publishers: Mapping of event -> list of publisher agents
     """
 
-    def __init__(self, agents_dir: Path):
+    def __init__(self, agents_dir: Path, events_dir: Path = None):
         """
         Initialize analyzer
 
         Args:
             agents_dir: Path to directory containing agent files
+            events_dir: Path to directory containing event files (optional)
         """
         self.agents_dir = agents_dir
-        self.subscriptions: Dict[str, List[str]] = defaultdict(list)
-        self.publications: Dict[str, List[str]] = defaultdict(list)
-        self.event_to_subscribers: Dict[str, List[str]] = defaultdict(list)
-        self.event_to_publishers: Dict[str, List[str]] = defaultdict(list)
+        self.events_dir = events_dir
+        self.subscriptions: Dict[NamespacedItem, List[NamespacedItem]] = defaultdict(list)
+        self.publications: Dict[NamespacedItem, List[NamespacedItem]] = defaultdict(list)
+        self.event_to_subscribers: Dict[NamespacedItem, List[NamespacedItem]] = defaultdict(list)
+        self.event_to_publishers: Dict[NamespacedItem, List[NamespacedItem]] = defaultdict(list)
+
+        # Build mapping of event class names to their directory namespaces
+        self.event_class_to_namespace: Dict[str, str] = {}
+        if events_dir and events_dir.exists():
+            self._scan_events_directory()
+
+    def _scan_events_directory(self) -> None:
+        """
+        Scan the events directory to build a mapping of class names to their namespace (directory name).
+
+        For example, if events_dir contains:
+            events/user_service/UserCreated.py -> maps "UserCreated" to "user_service"
+            events/order_service/OrderPlaced.py -> maps "OrderPlaced" to "order_service"
+        """
+        # Pattern to extract class names from Python files
+        class_pattern = re.compile(r'class\s+([A-Z][A-Za-z0-9_]*)\s*[:\(]')
+
+        for namespace_dir in self.events_dir.iterdir():
+            if not namespace_dir.is_dir() or namespace_dir.name.startswith('__'):
+                continue
+
+            namespace = namespace_dir.name
+
+            # Scan all Python files in this namespace directory
+            for event_file in namespace_dir.glob("*.py"):
+                if event_file.name.startswith("__"):
+                    continue
+
+                try:
+                    content = event_file.read_text()
+                    # Find all class definitions in the file
+                    for match in class_pattern.finditer(content):
+                        class_name = match.group(1)
+                        self.event_class_to_namespace[class_name] = namespace
+                except Exception as e:
+                    # Skip files that can't be read
+                    pass
 
     def analyze(self) -> None:
         """Analyze all agent files in the agents directory"""
@@ -58,38 +124,86 @@ class EventFlowAnalyzer:
         """
         content = file_path.read_text()
 
+        # First pass: collect published events to determine agent namespace
+        published_events = []
+        publish_pattern = r'self\.service_bus\.publish\(([A-Za-z_]+)\.__name__'
+        for match in re.finditer(publish_pattern, content):
+            event_class_name = match.group(1)
+            event_namespace = self.event_class_to_namespace.get(event_class_name, 'default')
+            published_events.append((event_class_name, event_namespace))
+
+        # Determine agent namespace from most common published event namespace
+        # (excluding 'default' to avoid contamination)
+        agent_namespace = 'default'
+        if published_events:
+            namespace_counts = Counter(ns for _, ns in published_events if ns != 'default')
+            if namespace_counts:
+                agent_namespace = namespace_counts.most_common(1)[0][0]
+
+        agent_item = NamespacedItem(name=agent_name, namespace=agent_namespace)
+
         # Find subscriptions: self.service_bus.subscribe(EventName.__name__, ...)
         subscribe_pattern = r'self\.service_bus\.subscribe\(([A-Za-z_]+)\.__name__'
         for match in re.finditer(subscribe_pattern, content):
-            event_name = match.group(1)
-            self.subscriptions[agent_name].append(event_name)
-            self.event_to_subscribers[event_name].append(agent_name)
+            event_class_name = match.group(1)
+            event_namespace = self.event_class_to_namespace.get(event_class_name, 'default')
+            event_item = NamespacedItem(name=event_class_name, namespace=event_namespace)
 
-        # Find publications: self.service_bus.publish(EventName.__name__, ...)
-        publish_pattern = r'self\.service_bus\.publish\(([A-Za-z_]+)\.__name__'
-        for match in re.finditer(publish_pattern, content):
-            event_name = match.group(1)
-            self.publications[agent_name].append(event_name)
-            self.event_to_publishers[event_name].append(agent_name)
+            self.subscriptions[agent_item].append(event_item)
+            self.event_to_subscribers[event_item].append(agent_item)
 
-    def get_all_events(self) -> Set[str]:
+        # Add publications (already collected above)
+        for event_class_name, event_namespace in published_events:
+            event_item = NamespacedItem(name=event_class_name, namespace=event_namespace)
+            self.publications[agent_item].append(event_item)
+            self.event_to_publishers[event_item].append(agent_item)
+
+    def get_all_events(self) -> Set[NamespacedItem]:
         """
         Get all unique events across all agents
 
         Returns:
-            Set of event names
+            Set of NamespacedItem objects representing events
         """
         events = set()
         events.update(self.event_to_subscribers.keys())
         events.update(self.event_to_publishers.keys())
         return events
 
-    def get_event_chains(self) -> List[List[str]]:
+    def get_all_agents(self) -> Set[NamespacedItem]:
+        """
+        Get all unique agents
+
+        Returns:
+            Set of NamespacedItem objects representing agents
+        """
+        return set(self.subscriptions.keys()) | set(self.publications.keys())
+
+    def get_all_namespaces(self) -> Set[str]:
+        """
+        Get all unique namespaces from both agents and events
+
+        Returns:
+            Set of namespace strings
+        """
+        namespaces = set()
+
+        # Collect event namespaces
+        for event in self.get_all_events():
+            namespaces.add(event.namespace)
+
+        # Collect agent namespaces
+        for agent in self.get_all_agents():
+            namespaces.add(agent.namespace)
+
+        return namespaces
+
+    def get_event_chains(self) -> List[List[NamespacedItem]]:
         """
         Build event chains (sequences of events)
 
         Returns:
-            List of event chains, where each chain is a list of event names
+            List of event chains, where each chain is a list of NamespacedItem
         """
         chains = []
         visited = set()
@@ -108,12 +222,12 @@ class EventFlowAnalyzer:
 
         return chains
 
-    def _build_chain(self, event: str, visited: Set[str]) -> List[str]:
+    def _build_chain(self, event: NamespacedItem, visited: Set[NamespacedItem]) -> List[NamespacedItem]:
         """
         Recursively build an event chain
 
         Args:
-            event: Starting event
+            event: Starting event (NamespacedItem)
             visited: Set of already visited events
 
         Returns:
@@ -156,12 +270,12 @@ class EventFlowAnalyzer:
         # Define event nodes
         lines.append('    // Events')
         for event in sorted(events):
-            lines.append(f'    "{event}" [style=filled, fillcolor=lightblue, shape=ellipse];')
+            lines.append(f'    "{event.name}" [style=filled, fillcolor=lightblue, shape=ellipse, class="namespace-{event.namespace}"];')
 
         lines.append('')
         lines.append('    // Agents')
         for agent in sorted(agents):
-            lines.append(f'    "{agent}" [style=filled, fillcolor=lightyellow];')
+            lines.append(f'    "{agent.name}" [style=filled, fillcolor=lightyellow, class="namespace-{agent.namespace}"];')
 
         lines.append('')
         lines.append('    // Event Flow')
@@ -169,11 +283,11 @@ class EventFlowAnalyzer:
         # Add edges
         for event, subscribers in sorted(self.event_to_subscribers.items()):
             for subscriber in subscribers:
-                lines.append(f'    "{event}" -> "{subscriber}";')
+                lines.append(f'    "{event.name}" -> "{subscriber.name}";')
 
         for agent, publications in sorted(self.publications.items()):
             for event in publications:
-                lines.append(f'    "{agent}" -> "{event}";')
+                lines.append(f'    "{agent.name}" -> "{event.name}";')
 
         lines.append('}')
         return '\n'.join(lines)
@@ -200,15 +314,15 @@ class EventFlowAnalyzer:
             subscribers = self.event_to_subscribers.get(event, [])
             publishers = self.event_to_publishers.get(event, [])
 
-            print(f"\n📌 {event}")
+            print(f"\n📌 {event.name} (namespace: {event.namespace})")
 
             if publishers:
-                print(f"   Published by: {', '.join(sorted(publishers))}")
+                print(f"   Published by: {', '.join(sorted(p.name for p in publishers))}")
             else:
                 print(f"   Published by: [EXTERNAL/ORCHESTRATOR]")
 
             if subscribers:
-                print(f"   Consumed by:  {', '.join(sorted(subscribers))}")
+                print(f"   Consumed by:  {', '.join(sorted(s.name for s in subscribers))}")
             else:
                 print(f"   Consumed by:  [NO SUBSCRIBERS]")
 
@@ -221,8 +335,8 @@ class EventFlowAnalyzer:
             subscribed = self.subscriptions.get(agent, [])
             published = self.publications.get(agent, [])
 
-            print(f"\n🤖 {agent}")
+            print(f"\n🤖 {agent.name} (namespace: {agent.namespace})")
             if subscribed:
-                print(f"   Listens to: {', '.join(sorted(subscribed))}")
+                print(f"   Listens to: {', '.join(sorted(e.name for e in subscribed))}")
             if published:
-                print(f"   Publishes:  {', '.join(sorted(published))}")
+                print(f"   Publishes:  {', '.join(sorted(e.name for e in published))}")
