@@ -14,7 +14,7 @@ class ConfigHelper:
     project root, identified by the presence of the configuration file.
     It then loads this file, validates key paths, and provides easy access to the configuration.
     """
-    CONFIG_FILENAME = "devtools_config.yaml"
+    CONFIG_FILENAME = "event_flow_config.yaml"
 
     def __init__(self, start_path: str | Path | None = None, config_file_name: str | None = None):
         """
@@ -135,5 +135,31 @@ class ConfigHelper:
         """
         return self.postman_dir
 
-    def get_namespaces_colors(self):
+    def get_namespaces_colors(self) -> Dict[str, str]:
+        """
+        Returns the mapping of namespace names to their fill colors.
+
+        Returns:
+            A dictionary mapping namespace names to hex color codes.
+            Example: {"bot_lifecycle": "#81c784", "market_data": "#64b5f6"}
+        """
         return self.config.get('namespaces_colors', {})
+
+    def get_namespaces_shapes(self) -> Dict[str, str]:
+        """
+        Returns the mapping of namespace names to their node shapes.
+
+        Returns:
+            A dictionary mapping namespace names to Graphviz node shapes.
+            Example: {"bot_lifecycle": "box", "market_data": "ellipse"}
+        """
+        return self.config.get('namespaces_shapes', {})
+
+    def get_graph_fontname(self) -> str | None:
+        """
+        Returns the font name to use for graph rendering.
+
+        Returns:
+            The font name (e.g., "Arial", "Verdana") or None if not specified.
+        """
+        return self.config.get('graph_fontname')
