@@ -13,7 +13,7 @@
     - Generates a Postman collection on successful API push if a `postman` directory is found.
 - **Flexible Execution**:
     - Supports one-shot or continuous scanning modes.
-  - Configurable via a central `event_flow_config.yaml` file or command-line arguments.
+    - Configurable via a central `event_flow_config.yaml` file or command-line arguments.
 
 ## Installation
 
