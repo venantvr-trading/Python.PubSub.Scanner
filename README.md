@@ -13,7 +13,7 @@
     - Generates a Postman collection on successful API push if a `postman` directory is found.
 - **Flexible Execution**:
     - Supports one-shot or continuous scanning modes.
-    - Configurable via a central `devtools_config.yaml` file or command-line arguments.
+  - Configurable via a central `event_flow_config.yaml` file or command-line arguments.
 
 ## Installation
 
@@ -30,10 +30,10 @@ The recommended way to use the scanner is to combine a central configuration fil
 
 ### 1. Create a Configuration File
 
-At the root of your project, create a `devtools_config.yaml` file. This allows you to centralize all paths and settings.
+At the root of your project, create a `event_flow_config.yaml` file. This allows you to centralize all paths and settings.
 
 ```yaml
-# devtools_config.yaml
+# event_flow_config.yaml
 
 # === Common Directories ===
 agents_dir: "./path/to/your/agents"  # Required
@@ -44,9 +44,20 @@ events_dir: "./path/to/your/events"  # Required
 # next to the "agents" directory.
 postman_dir: "./postman"
 
-# === Service Configurations ===
-event_flow:
-  port: 5555
+# === Service Configuration ===
+port: 5555
+
+# === Graph Styling (Optional) ===
+# Customize the appearance of your event flow graphs
+namespaces_colors:
+  bot_lifecycle: "#81c784"
+  market_data: "#64b5f6"
+
+namespaces_shapes:
+  bot_lifecycle: "box"
+  market_data: "ellipse"
+
+graph_fontname: "Arial"
 ```
 
 ### 2. Run Programmatically (Recommended)
@@ -64,7 +75,7 @@ def main():
     """
     try:
         # 1. Initialize the helper. It finds and validates the config automatically.
-        helper = ConfigHelper(config_file_name="devtools_config.yaml")
+        helper = ConfigHelper(config_file_name="event_flow_config.yaml")
 
         # 2. Use the factory method to create a fully configured scanner.
         scanner = EventFlowScanner.from_config(config=helper)

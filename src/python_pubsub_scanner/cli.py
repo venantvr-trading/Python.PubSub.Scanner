@@ -35,7 +35,7 @@ For more information: https://github.com/venantvr-trading/Python.PubSub.Scanner
     parser.add_argument(
         '--config',
         type=str,
-        help='Path to configuration file (event_flow_config.yaml or event_flow_config.yaml)'
+        help='Path to configuration file (event_flow_config.yaml)'
     )
     parser.add_argument(
         '--agents-dir',

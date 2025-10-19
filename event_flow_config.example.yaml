@@ -1,5 +1,5 @@
-# devtools_config.yaml - Example Configuration File
-# Copy this file to devtools_config.yaml and adjust paths to match your project structure
+# event_flow_config.yaml - Example Configuration File
+# Copy this file to event_flow_config.yaml and adjust paths to match your project structure
 
 # === Common Directories ===
 # Required: Path to your agents directory
