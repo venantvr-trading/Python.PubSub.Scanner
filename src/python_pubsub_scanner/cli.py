@@ -1,6 +1,8 @@
 """
 CLI entry point for Event Flow Scanner
 """
+from __future__ import annotations
+
 import argparse
 import sys
 from pathlib import Path
@@ -9,7 +11,7 @@ from .config_helper import ConfigHelper
 from .scanner import EventFlowScanner
 
 
-def main():
+def main() -> None:
     """CLI entry point for scanner"""
     parser = argparse.ArgumentParser(
         description="Event Flow Scanner - Scan codebase and push graphs to API",
