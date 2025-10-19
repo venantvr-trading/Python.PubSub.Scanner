@@ -5,6 +5,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from .config_helper import ConfigHelper
 from .scanner import EventFlowScanner
 
 
@@ -15,13 +16,16 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # One-shot scan
+  # Using config file (recommended - includes colors and styling)
+  pubsub-scanner --config event_flow_config.yaml --one-shot
+
+  # Continuous scan with config (every 60 seconds)
+  pubsub-scanner --config event_flow_config.yaml --interval 60
+
+  # Manual mode: One-shot scan
   pubsub-scanner --agents-dir ./agents --api-url http://localhost:5555 --one-shot
 
-  # Continuous scan (every 60 seconds)
-  pubsub-scanner --agents-dir ./agents --interval 60
-
-  # With events directory for namespace info
+  # Manual mode: With events directory for namespace info
   pubsub-scanner --agents-dir ./agents --events-dir ./events --one-shot
 
 For more information: https://github.com/venantvr-trading/Python.PubSub.Scanner
@@ -29,10 +33,14 @@ For more information: https://github.com/venantvr-trading/Python.PubSub.Scanner
     )
 
     parser.add_argument(
+        '--config',
+        type=str,
+        help='Path to configuration file (event_flow_config.yaml or event_flow_config.yaml)'
+    )
+    parser.add_argument(
         '--agents-dir',
         type=str,
-        required=True,
-        help='Path to agents directory (required)'
+        help='Path to agents directory (required if --config not provided)'
     )
     parser.add_argument(
         '--events-dir',
@@ -68,10 +76,6 @@ For more information: https://github.com/venantvr-trading/Python.PubSub.Scanner
 
     args = parser.parse_args()
 
-    # Parse paths
-    agents_dir = Path(args.agents_dir)
-    events_dir = Path(args.events_dir) if args.events_dir else None
-
     # Determine mode. Default to one-shot if no mode is specified.
     is_continuous = args.interval is not None and not args.one_shot
     interval = args.interval if is_continuous else None
@@ -80,13 +84,29 @@ For more information: https://github.com/venantvr-trading/Python.PubSub.Scanner
         print("[SCAN] Info: Neither --one-shot nor --interval specified. Running a single scan.")
 
     try:
-        # Create scanner
-        scanner = EventFlowScanner(
-            agents_dir=agents_dir,
-            events_dir=events_dir,
-            api_url=args.api_url,
-            interval=interval
-        )
+        # Create scanner from config or manual args
+        if args.config:
+            # Load from config file
+            config_file = Path(args.config)
+            config_file_name = config_file.name
+            start_path = config_file.parent if config_file.parent != Path('.') else Path.cwd()
+            config_helper = ConfigHelper(start_path=start_path, config_file_name=config_file_name)
+            scanner = EventFlowScanner.from_config(config_helper, interval=interval)
+        else:
+            # Manual mode - require agents_dir
+            if not args.agents_dir:
+                print("Error: --agents-dir is required when --config is not provided", file=sys.stderr)
+                sys.exit(1)
+
+            agents_dir = Path(args.agents_dir)
+            events_dir = Path(args.events_dir) if args.events_dir else None
+
+            scanner = EventFlowScanner(
+                agents_dir=agents_dir,
+                events_dir=events_dir,
+                api_url=args.api_url,
+                interval=interval
+            )
 
         # Run
         if is_continuous:

@@ -118,6 +118,7 @@ class TestScannerPayload(unittest.TestCase):
         Verify the from_config factory method correctly initializes the scanner.
         """
         mock_config_helper = MagicMock(spec=ConfigHelper)
+        mock_config_helper.config = {'port': 1234}
         mock_config_helper.get_agents_path.return_value = self.agents_dir
         mock_config_helper.get_events_path.return_value = self.events_dir
         mock_config_helper.get_postman_path.return_value = self.postman_dir
@@ -147,6 +148,7 @@ class TestScannerPayload(unittest.TestCase):
         test_fontname = "Verdana"
 
         mock_config_helper = MagicMock(spec=ConfigHelper)
+        mock_config_helper.config = {'port': 1234}
         mock_config_helper.get_agents_path.return_value = self.agents_dir
         mock_config_helper.get_events_path.return_value = self.events_dir
         mock_config_helper.get_postman_path.return_value = self.postman_dir

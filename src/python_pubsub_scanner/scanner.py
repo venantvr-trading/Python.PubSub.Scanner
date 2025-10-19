@@ -125,8 +125,9 @@ class EventFlowScanner:
         Returns:
             A configured instance of EventFlowScanner.
         """
-        event_flow_config = config.get_service_config('event_flow')
-        api_url = f"http://localhost:{event_flow_config.get('port', 5555)}"
+        # Read port from root config
+        port = config.config.get('port', 5555)
+        api_url = f"http://localhost:{port}"
 
         return cls(
             agents_dir=config.get_agents_path(),

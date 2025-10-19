@@ -22,7 +22,7 @@ class ConfigHelper:
 
         Args:
             start_path: The path to start searching from. Defaults to the current working directory.
-            config_file_name: The name of the config file to find. Defaults to "devtools_config.yaml".
+            config_file_name: The name of the config file to find. Defaults to "event_flow_config.yaml".
 
         Raises:
             FileNotFoundError: If the config file or critical directories are not found.

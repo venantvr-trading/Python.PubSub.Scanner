@@ -35,7 +35,7 @@ class TestConfigHelper(unittest.TestCase):
         self.config_data: Dict[str, Any] = {
             "agents_dir": "./src/agents",
             "events_dir": "./src/events",
-            "event_flow": {"port": 9999}
+            "port": 9999
         }
 
     def tearDown(self):
@@ -43,13 +43,13 @@ class TestConfigHelper(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def _write_config(self, data):
-        with open(self.project_root / "devtools_config.yaml", "w") as f:
+        with open(self.project_root / "event_flow_config.yaml", "w") as f:
             yaml.dump(data, f)
 
     def test_successful_init_from_script_path(self):
         """Verify successful initialization when starting from a subdirectory."""
         self._write_config(self.config_data)
-        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="event_flow_config.yaml")
 
         self.assertEqual(helper.project_root, self.project_root)
         self.assertEqual(helper.get_agents_path(), self.agents_dir)
@@ -62,7 +62,7 @@ class TestConfigHelper(unittest.TestCase):
         self._write_config(self.config_data)
 
         with self.assertRaises(FileNotFoundError) as ctx:
-            ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+            ConfigHelper(start_path=self.start_dir, config_file_name="event_flow_config.yaml")
         self.assertIn("non_existent_agents", str(ctx.exception))
 
     def test_postman_dir_explicit_and_exists(self):
@@ -71,7 +71,7 @@ class TestConfigHelper(unittest.TestCase):
         self.config_data["postman_dir"] = "./src/postman"
         self._write_config(self.config_data)
 
-        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="event_flow_config.yaml")
         self.assertEqual(helper.get_postman_path(), self.postman_dir)
 
     def test_postman_dir_guessed_and_exists(self):
@@ -81,7 +81,7 @@ class TestConfigHelper(unittest.TestCase):
         (self.agents_dir.parent / "postman").mkdir()
         self._write_config(self.config_data)
 
-        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="event_flow_config.yaml")
         expected_path = (self.agents_dir.parent / "postman").resolve()
         self.assertEqual(helper.get_postman_path(), expected_path)
 
@@ -89,18 +89,8 @@ class TestConfigHelper(unittest.TestCase):
         """Verify Postman dir is None if it's not in config and doesn't exist at the guessed location."""
         # Directory is not created and not in config
         self._write_config(self.config_data)
-        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="event_flow_config.yaml")
         self.assertIsNone(helper.get_postman_path())
-
-    def test_get_service_config(self):
-        """Verify it correctly returns a specific service's configuration."""
-        self._write_config(self.config_data)
-        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
-        service_config = helper.get_service_config("event_flow")
-        self.assertEqual(service_config["port"], 9999)
-
-        with self.assertRaises(KeyError):
-            helper.get_service_config("non_existent_service")
 
     def test_get_namespaces_colors(self):
         """Verify it correctly returns namespace color mappings from config."""
@@ -110,7 +100,7 @@ class TestConfigHelper(unittest.TestCase):
             "indicator": "#9575cd"
         }
         self._write_config(self.config_data)
-        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="event_flow_config.yaml")
 
         colors = helper.get_namespaces_colors()
         self.assertEqual(colors["bot_lifecycle"], "#81c784")
@@ -121,7 +111,7 @@ class TestConfigHelper(unittest.TestCase):
     def test_get_namespaces_colors_empty_when_not_configured(self):
         """Verify it returns an empty dict when namespaces_colors is not in config."""
         self._write_config(self.config_data)
-        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="event_flow_config.yaml")
 
         colors = helper.get_namespaces_colors()
         self.assertEqual(colors, {})
@@ -134,7 +124,7 @@ class TestConfigHelper(unittest.TestCase):
             "indicator": "diamond"
         }
         self._write_config(self.config_data)
-        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="event_flow_config.yaml")
 
         shapes = helper.get_namespaces_shapes()
         self.assertEqual(shapes["bot_lifecycle"], "box")
@@ -145,7 +135,7 @@ class TestConfigHelper(unittest.TestCase):
     def test_get_namespaces_shapes_empty_when_not_configured(self):
         """Verify it returns an empty dict when namespaces_shapes is not in config."""
         self._write_config(self.config_data)
-        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="event_flow_config.yaml")
 
         shapes = helper.get_namespaces_shapes()
         self.assertEqual(shapes, {})
@@ -154,7 +144,7 @@ class TestConfigHelper(unittest.TestCase):
         """Verify it correctly returns the graph fontname from config."""
         self.config_data["graph_fontname"] = "Verdana"
         self._write_config(self.config_data)
-        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="event_flow_config.yaml")
 
         fontname = helper.get_graph_fontname()
         self.assertEqual(fontname, "Verdana")
@@ -162,7 +152,7 @@ class TestConfigHelper(unittest.TestCase):
     def test_get_graph_fontname_none_when_not_configured(self):
         """Verify it returns None when graph_fontname is not in config."""
         self._write_config(self.config_data)
-        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="event_flow_config.yaml")
 
         fontname = helper.get_graph_fontname()
         self.assertIsNone(fontname)

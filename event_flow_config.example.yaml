@@ -12,9 +12,7 @@ events_dir: "./path/to/your/events"
 # If omitted, the scanner will look for a "postman" directory next to the agents directory
 postman_dir: "./postman"
 
-# === Service Configurations ===
-event_flow:
-  port: 5555
+port: 5555
 
 # === Graph Styling (Optional) ===
 # Customize the appearance of your event flow graphs
