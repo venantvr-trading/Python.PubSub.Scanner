@@ -6,8 +6,10 @@
 
 - **Code Analysis**: Autonomously scans agent files to detect event subscriptions and publications.
 - **Graph Generation**:
-    - Generates multiple graph types (simplified, complete, full-tree).
+    - Generates multiple graph types (complete, full-tree).
+    - Pluggable architecture: easily create custom graph generators.
     - Produces DOT content with CSS classes (`namespace-*`) for easy styling in web frontends.
+    - Supports custom colors, shapes, and fonts per namespace.
 - **API Integration**:
     - Automatically pushes graph data and statistics to a monitoring API.
     - Generates a Postman collection on successful API push if a `postman` directory is found.
@@ -45,6 +47,35 @@ postman_dir: "./postman"
 # === Service Configurations ===
 event_flow:
   port: 5555
+
+# === Graph Styling (Optional) ===
+# Customize the appearance of your event flow graphs
+
+# Namespace colors: Map namespace names to hex color codes
+namespaces_colors:
+  bot_lifecycle: "#81c784"  # green
+  market_data: "#64b5f6"    # blue
+  indicator: "#9575cd"      # purple
+  internal: "#ba68c8"       # purple light
+  capital: "#ffd54f"        # yellow
+  pool: "#ffb74d"           # orange
+  position: "#ff8a65"       # deep orange
+  exchange: "#4dd0e1"       # cyan
+  command: "#a1887f"        # brown
+  database: "#90a4ae"       # blue grey
+  exit_strategy: "#aed581"  # light green
+  query: "#81d4fa"          # light blue
+  unknown: "#e0e0e0"        # grey
+
+# Namespace shapes: Map namespace names to Graphviz node shapes
+# Common shapes: box, ellipse, circle, diamond, triangle, hexagon, octagon
+namespaces_shapes:
+  bot_lifecycle: "box"
+  market_data: "ellipse"
+  indicator: "diamond"
+
+# Font name for graph text elements
+graph_fontname: "Arial"
 ```
 
 ### 2. Run Programmatically (Recommended)
@@ -112,6 +143,51 @@ options:
   --one-shot            Run once and exit (overrides --interval)
   --version             show program's version number and exit
 ```
+
+## Custom Graph Generators
+
+The scanner uses a pluggable architecture for graph generation. You can easily create custom generators to visualize your event flow in new ways.
+
+### Creating a Custom Generator
+
+```python
+from python_pubsub_scanner.graph_generators import GraphGenerator, register_generator
+
+
+class MyCustomGenerator(GraphGenerator):
+
+    @property
+    def graph_type(self) -> str:
+        return "my-custom-type"
+
+    def generate(self, analyzer, output_path=None) -> str:
+        # Access analyzer data
+        events = analyzer.get_all_events()
+        agents = analyzer.get_all_agents()
+
+        # Build your DOT content
+        lines = ['digraph Custom {']
+
+        # Use styling options
+        for event in events:
+            color = self.colors.get(event.namespace, "#e0e0e0")
+            lines.append(f'    "{event.name}" [fillcolor="{color}"];')
+
+        lines.append('}')
+        return '\n'.join(lines)
+
+
+# Register your generator
+register_generator('my-custom-type', MyCustomGenerator)
+
+# Use it
+from python_pubsub_scanner.graph_generators import get_generator
+
+generator = get_generator('my-custom-type', colors={...})
+dot_content = generator.generate(analyzer)
+```
+
+For a complete guide on creating custom generators, see [docs/CUSTOM_GENERATORS.md](docs/CUSTOM_GENERATORS.md).
 
 ## Development
 

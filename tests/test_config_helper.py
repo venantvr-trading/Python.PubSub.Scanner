@@ -101,6 +101,71 @@ class TestConfigHelper(unittest.TestCase):
         with self.assertRaises(KeyError):
             helper.get_service_config("non_existent_service")
 
+    def test_get_namespaces_colors(self):
+        """Verify it correctly returns namespace color mappings from config."""
+        self.config_data["namespaces_colors"] = {
+            "bot_lifecycle": "#81c784",
+            "market_data": "#64b5f6",
+            "indicator": "#9575cd"
+        }
+        self._write_config(self.config_data)
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+
+        colors = helper.get_namespaces_colors()
+        self.assertEqual(colors["bot_lifecycle"], "#81c784")
+        self.assertEqual(colors["market_data"], "#64b5f6")
+        self.assertEqual(colors["indicator"], "#9575cd")
+        self.assertEqual(len(colors), 3)
+
+    def test_get_namespaces_colors_empty_when_not_configured(self):
+        """Verify it returns an empty dict when namespaces_colors is not in config."""
+        self._write_config(self.config_data)
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+
+        colors = helper.get_namespaces_colors()
+        self.assertEqual(colors, {})
+
+    def test_get_namespaces_shapes(self):
+        """Verify it correctly returns namespace shape mappings from config."""
+        self.config_data["namespaces_shapes"] = {
+            "bot_lifecycle": "box",
+            "market_data": "ellipse",
+            "indicator": "diamond"
+        }
+        self._write_config(self.config_data)
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+
+        shapes = helper.get_namespaces_shapes()
+        self.assertEqual(shapes["bot_lifecycle"], "box")
+        self.assertEqual(shapes["market_data"], "ellipse")
+        self.assertEqual(shapes["indicator"], "diamond")
+        self.assertEqual(len(shapes), 3)
+
+    def test_get_namespaces_shapes_empty_when_not_configured(self):
+        """Verify it returns an empty dict when namespaces_shapes is not in config."""
+        self._write_config(self.config_data)
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+
+        shapes = helper.get_namespaces_shapes()
+        self.assertEqual(shapes, {})
+
+    def test_get_graph_fontname(self):
+        """Verify it correctly returns the graph fontname from config."""
+        self.config_data["graph_fontname"] = "Verdana"
+        self._write_config(self.config_data)
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+
+        fontname = helper.get_graph_fontname()
+        self.assertEqual(fontname, "Verdana")
+
+    def test_get_graph_fontname_none_when_not_configured(self):
+        """Verify it returns None when graph_fontname is not in config."""
+        self._write_config(self.config_data)
+        helper = ConfigHelper(start_path=self.start_dir, config_file_name="devtools_config.yaml")
+
+        fontname = helper.get_graph_fontname()
+        self.assertIsNone(fontname)
+
 
 if __name__ == '__main__':
     unittest.main()

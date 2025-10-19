@@ -1,0 +1,51 @@
+# devtools_config.yaml - Example Configuration File
+# Copy this file to devtools_config.yaml and adjust paths to match your project structure
+
+# === Common Directories ===
+# Required: Path to your agents directory
+agents_dir: "./path/to/your/agents"
+
+# Required: Path to your events directory
+events_dir: "./path/to/your/events"
+
+# Optional: Path to postman directory for collection generation
+# If omitted, the scanner will look for a "postman" directory next to the agents directory
+postman_dir: "./postman"
+
+# === Service Configurations ===
+event_flow:
+  port: 5555
+
+# === Graph Styling (Optional) ===
+# Customize the appearance of your event flow graphs
+
+# Namespace colors: Map namespace names to hex color codes
+# These colors will be used to fill event nodes based on their namespace
+namespaces_colors:
+  bot_lifecycle: "#81c784"    # Material Green 300
+  market_data: "#64b5f6"      # Material Blue 300
+  indicator: "#9575cd"        # Material Purple 300
+  internal: "#ba68c8"         # Material Purple 200
+  capital: "#ffd54f"          # Material Yellow 300
+  pool: "#ffb74d"             # Material Orange 300
+  position: "#ff8a65"         # Material Deep Orange 300
+  exchange: "#4dd0e1"         # Material Cyan 300
+  command: "#a1887f"          # Material Brown 200
+  database: "#90a4ae"         # Material Blue Grey 300
+  exit_strategy: "#aed581"    # Material Light Green 300
+  query: "#81d4fa"            # Material Light Blue 200
+  unknown: "#e0e0e0"          # Material Grey 300
+
+# Namespace shapes: Map namespace names to Graphviz node shapes
+# Common shapes: box, ellipse, circle, diamond, triangle, hexagon, octagon, cylinder, note
+# For a complete list, see: https://graphviz.org/doc/info/shapes.html
+namespaces_shapes:
+  bot_lifecycle: "box"
+  market_data: "ellipse"
+  indicator: "diamond"
+  command: "hexagon"
+  database: "cylinder"
+
+# Font name for graph text elements
+# Common fonts: Arial, Helvetica, Verdana, Times, Courier
+graph_fontname: "Arial"

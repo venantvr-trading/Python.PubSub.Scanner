@@ -48,17 +48,17 @@ Library Usage:
 from __future__ import annotations
 
 import json
-import tempfile
 import time
 from pathlib import Path
-from typing import Optional, Dict, Set, Any
+from typing import Optional, Dict, Any
 from urllib.parse import urlparse
 
 import requests
 
 from .analyze_event_flow import EventFlowAnalyzer
+from .anomaly_detector import AnomalyDetector
 from .config_helper import ConfigHelper
-from .generate_hierarchical_tree import generate_hierarchical_tree
+from .graph_generators import get_generator
 
 
 class EventFlowScanner:
@@ -116,7 +116,7 @@ class EventFlowScanner:
         Creates an EventFlowScanner instance from a ConfigHelper object.
 
         This factory method simplifies initialization by automatically extracting
-        the required paths and API URL from the validated configuration.
+        the required paths, API URL, and graph styling options from the validated configuration.
 
         Args:
             config: A fully initialized ConfigHelper instance.
@@ -133,7 +133,10 @@ class EventFlowScanner:
             events_dir=config.get_events_path(),
             postman_dir=config.get_postman_path(),
             api_url=api_url,
-            interval=interval
+            interval=interval,
+            colors=config.get_namespaces_colors(),
+            shapes=config.get_namespaces_shapes(),
+            fontname=config.get_graph_fontname()
         )
 
     def scan_once(self) -> Dict[str, bool]:
@@ -174,6 +177,21 @@ class EventFlowScanner:
                         },
                         'namespaces': list(namespaces)  # Always include namespaces key
                     }
+
+                    # APPEND: Detect anomalies and add to payload (non-invasive)
+                    try:
+                        detector = AnomalyDetector(analyzer)
+                        anomalies = detector.detect_all()
+                        anomaly_summary = detector.get_anomaly_summary()
+
+                        payload['anomalies'] = {
+                            'summary': anomaly_summary,
+                            'details': anomalies
+                        }
+                        print(f"[SCAN] Detected {anomaly_summary['total_anomalies']} anomalies")
+                    except Exception as e:
+                        print(f"[SCAN] Warning: Failed to detect anomalies: {e}")
+                        # Continue without anomalies - no regression risk
 
                     success = self._push_to_api(payload)
                     results[graph_type] = success
@@ -282,68 +300,26 @@ class EventFlowScanner:
 
     def _generate_dot(self, analyzer: EventFlowAnalyzer, graph_type: str) -> Optional[str]:
         """
-        Generate DOT content for specified graph type
+        Generate DOT content for specified graph type using the graph_generators module.
+
+        Args:
+            analyzer: The EventFlowAnalyzer containing the parsed event flow data.
+            graph_type: The type of graph to generate (e.g., 'complete', 'full-tree').
+
+        Returns:
+            The generated DOT content as a string, or None if generation fails.
         """
-        with tempfile.NamedTemporaryFile(mode='w+', suffix='.dot', delete=True, encoding='utf-8') as temp_f:
-            dot_file_path = temp_f.name
-            try:
-                if graph_type == 'complete':
-                    dot_content = self._generate_complete_dot(analyzer)
-                    temp_f.write(dot_content)
-                elif graph_type == 'full-tree':
-                    generate_hierarchical_tree(analyzer, dot_file_path, output_format='dot')
-                else:
-                    return None
-                temp_f.seek(0)
-                return temp_f.read()
-            except Exception as e:
-                print(f"[SCAN] Error generating DOT for {graph_type}: {e}")
-                return None
-
-    def _generate_complete_dot(self, analyzer: EventFlowAnalyzer) -> str:
-        """
-        Generate DOT content for complete graph with homogeneous styles and namespace classes.
-        """
-        fontname = self.fontname or "Arial"
-        lines = ['digraph EventFlow {',
-                 f'    graph [fontname="{fontname}"];',
-                 '    rankdir=TB;',
-                 f'    node [shape=box, style="filled,rounded", fontname="{fontname}", fontsize=10];',
-                 f'    edge [arrowsize=0.8, fontname="{fontname}"];',
-                 '']
-
-        events = analyzer.get_all_events()
-        agents = analyzer.get_all_agents()
-
-        # Add event nodes with a class for their namespace
-        for event in sorted(events):
-            default_color = "#e0e0e0"
-            default_shape = "ellipse"
-
-            fillcolor = self.colors.get(event.namespace, default_color)
-            shape = self.shapes.get(event.namespace, default_shape)
-
-            lines.append(f'    "{event.name}" [fillcolor="{fillcolor}", shape={shape}, class="namespace-{event.namespace}"];')
-        for agent in sorted(agents):
-            lines.append(f'    "{agent.name}" [fillcolor="#ffcc80", class="namespace-{agent.namespace}"];')
-
-        lines.append('')
-
-        # Add edges
-        for event, subscribers in sorted(analyzer.event_to_subscribers.items()):
-            for subscriber in subscribers:
-                lines.append(f'    "{event.name}" -> "{subscriber.name}";')
-
-        for agent, publications in sorted(analyzer.publications.items()):
-            for event in publications:
-                lines.append(f'    "{agent.name}" -> "{event.name}";')
-
-        lines.append('}')
-        return '\n'.join(lines)
-
-    def _get_namespaces(self) -> Set[str]:
-        """
-        Get all event namespaces by scanning events directory.
-        Assumes events_dir exists as validated in the constructor.
-        """
-        return {d.name for d in self.events_dir.iterdir() if d.is_dir() and not d.name.startswith('__')}
+        try:
+            generator = get_generator(
+                graph_type=graph_type,
+                colors=self.colors,
+                shapes=self.shapes,
+                fontname=self.fontname
+            )
+            return generator.generate(analyzer)
+        except ValueError as e:
+            print(f"[SCAN] Unknown graph type '{graph_type}': {e}")
+            return None
+        except Exception as e:
+            print(f"[SCAN] Error generating DOT for {graph_type}: {e}")
+            return None
