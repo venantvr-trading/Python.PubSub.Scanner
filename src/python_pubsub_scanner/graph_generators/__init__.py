@@ -37,10 +37,10 @@ AVAILABLE_GENERATORS = list(_GENERATOR_REGISTRY.keys())
 
 
 def get_generator(
-    graph_type: str,
-    colors: Optional[Dict[str, str]] = None,
-    shapes: Optional[Dict[str, str]] = None,
-    fontname: Optional[str] = None
+        graph_type: str,
+        colors: Optional[Dict[str, str]] = None,
+        shapes: Optional[Dict[str, str]] = None,
+        fontname: Optional[str] = None
 ) -> GraphGenerator:
     """
     Get a graph generator instance for the specified type.

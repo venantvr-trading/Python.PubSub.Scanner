@@ -154,7 +154,9 @@ class TestGraphGenerators(unittest.TestCase):
 
     def test_register_custom_generator(self):
         """Verify that custom generators can be registered."""
+
         class CustomGenerator(GraphGenerator):
+
             @property
             def graph_type(self) -> str:
                 return "custom"

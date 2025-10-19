@@ -4,7 +4,8 @@ This guide explains how to create custom graph generators for the Python PubSub 
 
 ## Overview
 
-The scanner uses a pluggable architecture for generating different types of event flow graphs. You can easily create your own custom generators to visualize your event-driven architecture in new ways.
+The scanner uses a pluggable architecture for generating different types of event flow graphs. You can easily create your own custom generators to visualize your
+event-driven architecture in new ways.
 
 ## Architecture
 
@@ -117,6 +118,7 @@ The base `GraphGenerator` class provides three styling options that are automati
 - **fontname** (`str`): Font name for graph text elements (default: "Arial")
 
 Access these in your generator via:
+
 ```python
 self.colors
 self.shapes
@@ -139,11 +141,11 @@ namespaces = analyzer.get_all_namespaces()
 
 # Get subscription information (Dict[NamespacedItem, List[NamespacedItem]])
 subscriptions = analyzer.subscriptions  # agent -> [events]
-publications = analyzer.publications    # agent -> [events]
+publications = analyzer.publications  # agent -> [events]
 
 # Get reverse mappings
 event_to_subscribers = analyzer.event_to_subscribers  # event -> [agents]
-event_to_publishers = analyzer.event_to_publishers    # event -> [agents]
+event_to_publishers = analyzer.event_to_publishers  # event -> [agents]
 ```
 
 ### NamespacedItem
@@ -152,8 +154,8 @@ Events and agents are represented as `NamespacedItem` objects with two attribute
 
 ```python
 class NamespacedItem:
-    name: str        # e.g., "UserCreated"
-    namespace: str   # e.g., "user_service"
+    name: str  # e.g., "UserCreated"
+    namespace: str  # e.g., "user_service"
 ```
 
 ## Example: Namespace-Only Graph
@@ -163,6 +165,7 @@ Here's a complete example of a generator that creates a graph showing only names
 ```python
 from collections import defaultdict
 from python_pubsub_scanner.graph_generators import GraphGenerator, register_generator
+
 
 class NamespaceGraphGenerator(GraphGenerator):
     """
@@ -212,6 +215,7 @@ class NamespaceGraphGenerator(GraphGenerator):
                 f.write(dot_content)
 
         return dot_content
+
 
 # Register it
 register_generator('namespace-only', NamespaceGraphGenerator)

@@ -21,10 +21,10 @@ class GraphGenerator(ABC):
     """
 
     def __init__(
-        self,
-        colors: Optional[Dict[str, str]] = None,
-        shapes: Optional[Dict[str, str]] = None,
-        fontname: Optional[str] = None
+            self,
+            colors: Optional[Dict[str, str]] = None,
+            shapes: Optional[Dict[str, str]] = None,
+            fontname: Optional[str] = None
     ):
         """
         Initialize the graph generator with styling options.

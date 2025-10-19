@@ -124,6 +124,7 @@ class AnomalyDetector:
         rec_stack = set()
         path = []
 
+        # noinspection PyShadowingNames
         def dfs(agent: NamespacedItem) -> bool:
             """DFS helper to detect cycles."""
             visited.add(agent)

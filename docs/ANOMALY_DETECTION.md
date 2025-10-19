@@ -4,7 +4,8 @@ The scanner includes automatic anomaly detection to identify potential issues in
 
 ## Overview
 
-Anomalies are automatically detected during each scan and included in the API payload under a new `anomalies` key. This feature is **non-invasive** and will not break existing integrations.
+Anomalies are automatically detected during each scan and included in the API payload under a new `anomalies` key. This feature is **non-invasive** and will not break
+existing integrations.
 
 ## Detected Anomalies
 
@@ -13,12 +14,14 @@ Anomalies are automatically detected during each scan and included in the API pa
 Events that are either never published or never subscribed to.
 
 **Types:**
+
 - **never_published** (severity: `warning`): Event is defined but no agent publishes it
-  - May indicate dead code or incomplete implementation
+    - May indicate dead code or incomplete implementation
 - **never_subscribed** (severity: `info`): Event is published but no agent consumes it
-  - May be intentional (fire-and-forget events) or indicate unused events
+    - May be intentional (fire-and-forget events) or indicate unused events
 
 **Example:**
+
 ```json
 {
   "event": "UserDeleted",
@@ -36,12 +39,14 @@ Circular event dependencies where Agent A → Event X → Agent B → Event Y �
 **Severity:** `warning`
 
 Cycles can cause:
+
 - Infinite loops if not handled properly
 - Performance issues
 - Complex debugging scenarios
 - State management challenges
 
 **Example:**
+
 ```json
 {
   "cycle": ["AgentA", "AgentB", "AgentA"],
@@ -69,11 +74,13 @@ Agents that have no connections (neither publish nor subscribe to any events).
 **Severity:** `info`
 
 May indicate:
+
 - Dead code that should be removed
 - Configuration error
 - Agent that only performs internal operations (e.g., scheduled tasks)
 
 **Example:**
+
 ```json
 {
   "agent": "UnusedAgent",
@@ -239,6 +246,7 @@ except Exception as e:
 ```
 
 If anomaly detection fails:
+
 - The scan continues normally
 - A warning is printed to the console
 - The `anomalies` key is omitted from the payload
@@ -249,25 +257,25 @@ If anomaly detection fails:
 ### Interpreting Results
 
 1. **Orphaned Events - never_published (warning)**
-   - Review the event definition
-   - Check if it's dead code that should be removed
-   - Ensure all publishers are properly registered
+    - Review the event definition
+    - Check if it's dead code that should be removed
+    - Ensure all publishers are properly registered
 
 2. **Orphaned Events - never_subscribed (info)**
-   - Confirm if the event is intentionally fire-and-forget
-   - Consider if the event should be removed
-   - Check for missing subscribers
+    - Confirm if the event is intentionally fire-and-forget
+    - Consider if the event should be removed
+    - Check for missing subscribers
 
 3. **Cycles (warning)**
-   - Review if the cycle is intentional
-   - Ensure proper termination conditions exist
-   - Consider breaking the cycle with queue-based decoupling
-   - Add circuit breakers if needed
+    - Review if the cycle is intentional
+    - Ensure proper termination conditions exist
+    - Consider breaking the cycle with queue-based decoupling
+    - Add circuit breakers if needed
 
 4. **Isolated Agents (info)**
-   - Verify if the agent is still needed
-   - Check for configuration issues
-   - Consider if the agent should be moved or removed
+    - Verify if the agent is still needed
+    - Check for configuration issues
+    - Consider if the agent should be moved or removed
 
 ### Monitoring
 
@@ -297,15 +305,16 @@ store_metrics(
 1. **Cycle Detection**: Only detects direct cycles through the agent graph. Complex multi-hop cycles may not be detected.
 
 2. **False Positives**:
-   - Fire-and-forget events will appear as "never_subscribed"
-   - Scheduled agents may appear as "isolated"
-   - External event sources may cause "never_published" warnings
+    - Fire-and-forget events will appear as "never_subscribed"
+    - Scheduled agents may appear as "isolated"
+    - External event sources may cause "never_published" warnings
 
 3. **Performance**: On very large codebases (1000+ agents), cycle detection may take a few seconds.
 
 ## Future Enhancements
 
 Planned improvements (see TODO.md):
+
 - Recommendations for fixing each anomaly type
 - Confidence scores for anomalies
 - Historical anomaly tracking
