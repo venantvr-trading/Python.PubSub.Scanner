@@ -6,6 +6,7 @@ This script demonstrates how to use the AnomalyDetector independently
 to analyze your event-driven architecture for potential issues.
 """
 from pathlib import Path
+from typing import Any, Dict, List
 
 from python_pubsub_scanner.analyze_event_flow import EventFlowAnalyzer
 from python_pubsub_scanner.anomaly_detector import AnomalyDetector
@@ -40,8 +41,8 @@ def main():
     # Step 2: Detect anomalies
     print("🔎 Detecting anomalies...")
     detector = AnomalyDetector(analyzer)
-    anomalies = detector.detect_all()
-    summary = detector.get_anomaly_summary()
+    anomalies: Dict[str, List[Dict[str, Any]]] = detector.detect_all()
+    summary: Dict[str, int] = detector.get_anomaly_summary()
 
     # Step 3: Display results
     print()
@@ -59,42 +60,47 @@ def main():
     print()
 
     # Orphaned Events
-    if anomalies['orphaned_events']:
+    orphaned_events = anomalies.get('orphaned_events', [])
+    if orphaned_events:
         print("🔴 Orphaned Events:")
         print("-" * 60)
-        for orphan in anomalies['orphaned_events']:
-            severity_icon = "⚠️ " if orphan['severity'] == 'warning' else "ℹ️ "
-            print(f"{severity_icon} {orphan['event']} ({orphan['namespace']})")
-            print(f"   Type: {orphan['type']}")
-            print(f"   {orphan['message']}")
+        for orphan in orphaned_events:
+            severity_icon = "⚠️ " if orphan.get('severity') == 'warning' else "ℹ️ "
+            print(f"{severity_icon} {orphan.get('event', 'Unknown')} ({orphan.get('namespace', 'Unknown')})")
+            print(f"   Type: {orphan.get('type', 'Unknown')}")
+            print(f"   {orphan.get('message', '')}")
             print()
     else:
         print("✅ No orphaned events detected")
         print()
 
     # Cycles
-    if anomalies['cycles']:
+    cycles = anomalies.get('cycles', [])
+    if cycles:
         print("🔄 Circular Dependencies:")
         print("-" * 60)
-        for cycle in anomalies['cycles']:
-            print(f"⚠️  {cycle['message']}")
+        for cycle in cycles:
+            print(f"⚠️  {cycle.get('message', 'Cycle detected')}")
             print(f"   Cycle path:")
-            for step in cycle['path']:
-                print(f"      → {step['agent']} ({step['namespace']})")
-                if step['publishes']:
-                    print(f"        publishes: {', '.join(step['publishes'])}")
+            path = cycle.get('path', [])
+            for step in path:
+                print(f"      → {step.get('agent', 'Unknown')} ({step.get('namespace', 'Unknown')})")
+                publishes = step.get('publishes', [])
+                if publishes:
+                    print(f"        publishes: {', '.join(publishes)}")
             print()
     else:
         print("✅ No circular dependencies detected")
         print()
 
     # Isolated Agents
-    if anomalies['isolated_agents']:
+    isolated_agents = anomalies.get('isolated_agents', [])
+    if isolated_agents:
         print("🔌 Isolated Agents:")
         print("-" * 60)
-        for isolated in anomalies['isolated_agents']:
-            print(f"ℹ️  {isolated['agent']} ({isolated['namespace']})")
-            print(f"   {isolated['message']}")
+        for isolated in isolated_agents:
+            print(f"ℹ️  {isolated.get('agent', 'Unknown')} ({isolated.get('namespace', 'Unknown')})")
+            print(f"   {isolated.get('message', '')}")
             print()
     else:
         print("✅ No isolated agents detected")

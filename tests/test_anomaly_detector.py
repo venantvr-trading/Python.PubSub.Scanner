@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import unittest
-from collections import defaultdict
 from unittest.mock import MagicMock
 
 from python_pubsub_scanner.analyze_event_flow import NamespacedItem

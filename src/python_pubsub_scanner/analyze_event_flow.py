@@ -93,6 +93,7 @@ class EventFlowAnalyzer:
                 if event_file.name.startswith("__"):
                     continue
 
+                # noinspection PyUnusedLocal,PyBroadException
                 try:
                     content = event_file.read_text()
                     # Find all class definitions in the file

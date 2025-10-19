@@ -6,7 +6,6 @@ Generates a hierarchical tree representation of the event flow.
 from __future__ import annotations
 
 import tempfile
-from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
 from .base import GraphGenerator

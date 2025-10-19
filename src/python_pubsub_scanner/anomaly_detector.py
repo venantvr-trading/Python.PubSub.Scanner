@@ -9,7 +9,7 @@ This module provides tools to detect potential issues in event-driven architectu
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Dict, List, Set, TYPE_CHECKING
+from typing import Dict, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .analyze_event_flow import EventFlowAnalyzer, NamespacedItem

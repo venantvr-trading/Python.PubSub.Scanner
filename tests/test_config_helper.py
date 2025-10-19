@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any, Dict
 
 import yaml
 
@@ -30,8 +31,8 @@ class TestConfigHelper(unittest.TestCase):
         self.events_dir.mkdir(parents=True)
         self.start_dir.mkdir()
 
-        # Default config data
-        self.config_data = {
+        # Default config data (type annotation to allow any value types)
+        self.config_data: Dict[str, Any] = {
             "agents_dir": "./src/agents",
             "events_dir": "./src/events",
             "event_flow": {"port": 9999}
