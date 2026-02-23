@@ -144,3 +144,7 @@ make test
 ## License
 
 MIT License - See LICENSE file for details.
+
+## Stack
+
+[![Stack](https://skillicons.dev/icons?i=py,git&theme=dark)](https://skillicons.dev)
