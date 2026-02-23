@@ -147,4 +147,4 @@ MIT License - See LICENSE file for details.
 
 ## Stack
 
-[![Stack](https://skillicons.dev/icons?i=py,git&theme=dark)](https://skillicons.dev)
+[![Stack](https://skillicons.dev/icons?i=py&theme=dark)](https://skillicons.dev)
